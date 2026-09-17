@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.sqlite3
+data
+snmp_data
+*.md
+.pytest_cache
+.mypy_cache
+.cursor
+agent-transcripts

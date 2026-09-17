@@ -1,0 +1,49 @@
+# SNMP Network Device Simulator
+# CLI-only lab for Datadog SNMP / Network Device Monitoring demos.
+
+name: snmp-simulator
+
+services:
+  simulator:
+    build: .
+    image: snmp-network-device-simulator:latest
+    container_name: snmp-simulator
+    hostname: snmp-simulator
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+    ports:
+      # Community-based access from the Ubuntu host / Datadog Agent:
+      #   snmpwalk -v2c -c device-001 127.0.0.1:1161
+      - "1161:1161/udp"
+    volumes:
+      - simulator-data:/data
+    environment:
+      SIMULATOR_DATA_DIR: /data
+      DJANGO_SETTINGS_MODULE: snmp_lab.settings
+      # Set to true plus the count variables below to build a lab on container start.
+      SIMULATOR_AUTO_START: "${SIMULATOR_AUTO_START:-false}"
+      SIMULATOR_TOTAL: "${SIMULATOR_TOTAL:-}"
+      SIMULATOR_HIGH: "${SIMULATOR_HIGH:-}"
+      SIMULATOR_MEDIUM: "${SIMULATOR_MEDIUM:-}"
+      SIMULATOR_LOW: "${SIMULATOR_LOW:-}"
+      SIMULATOR_UNREACHABLE: "${SIMULATOR_UNREACHABLE:-}"
+    networks:
+      snmp-lab:
+        ipv4_address: 10.200.0.10
+
+volumes:
+  simulator-data:
+    name: snmp-simulator-data
+
+networks:
+  snmp-lab:
+    name: snmp-lab
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.200.0.0/16
+          gateway: 10.200.0.1

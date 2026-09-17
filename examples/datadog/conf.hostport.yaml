@@ -1,0 +1,25 @@
+# Use this when the Datadog Agent cannot route into the Docker network
+# (typical on Docker Desktop). Each simulated device is selected by
+# community string on the published host port 1161/udp.
+#
+#   snmpwalk -v2c -c device-001 127.0.0.1:1161 1.3.6.1.2.1.1
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+instances:
+  - ip_address: '127.0.0.1'
+    port: 1161
+    snmp_version: 2
+    community_string: 'device-001'
+    tags:
+      - 'device_id:device-001'
+      - 'env:snmp-lab'
+  - ip_address: '127.0.0.1'
+    port: 1161
+    snmp_version: 2
+    community_string: 'device-002'
+    tags:
+      - 'device_id:device-002'
+      - 'env:snmp-lab'

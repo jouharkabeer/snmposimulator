@@ -1,0 +1,21 @@
+# Add this block to /etc/datadog-agent/datadog.yaml when the Datadog Agent
+# runs on the same Ubuntu host as Docker and can route to 10.200.1.0/24.
+#
+# Autodiscovery polls every address in the subnet using SNMPv2c / public.
+# Unreachable simulated devices will fail the SNMP check and show as down.
+
+network_devices:
+  autodiscovery:
+    workers: 50
+    discovery_interval: 3600
+    loader: core
+    use_device_id_as_hostname: true
+    configs:
+      - network_address: 10.200.1.0/24
+        loader: core
+        snmp_version: 2
+        port: 161
+        community_string: 'public'
+        tags:
+          - 'env:snmp-lab'
+          - 'source:snmp-simulator'

@@ -1,0 +1,37 @@
+# SNMP Network Device Simulator defaults.
+# Override with environment variables in docker-compose.yml.
+
+network:
+  # Dedicated Docker / lab subnet. Each simulated device gets an address in
+  # device_cidr. The container management address is management_ip.
+  subnet: "10.200.0.0/16"
+  device_cidr: "10.200.1.0/24"
+  management_ip: "10.200.0.10"
+  gateway: "10.200.0.1"
+
+snmp:
+  version: "2c"
+  community: "public"
+  port: 161
+  # Host-accessible multiplexer. Query any device with:
+  #   snmpwalk -v2c -c device-001 <host>:1161
+  host_port: 1161
+  max_varbinds: 128
+
+identity:
+  id_prefix: "device-"
+  id_width: 3
+  domain: "lab.local"
+  contact: "netops@lab.local"
+  location: "Virtual SNMP Lab"
+
+datadog:
+  poll_interval_seconds: 15
+  namespace: "snmp-lab"
+
+engine:
+  reload_flag: "reload"
+  pid_file: "snmpsim.pid"
+  daemon_pid_file: "supervisor.pid"
+  args_file: "snmpsim.args"
+  cache_dir: "cache"

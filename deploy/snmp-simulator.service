@@ -1,0 +1,19 @@
+[Unit]
+Description=SNMP Network Device Simulator
+Documentation=file:///opt/snmp-simulator/deploy.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=0
+WorkingDirectory=/opt/snmp-simulator
+EnvironmentFile=-/opt/snmp-simulator/.env
+ExecStart=/usr/bin/docker compose -f /opt/snmp-simulator/docker-compose.yml up -d --build --remove-orphans
+ExecStop=/usr/bin/docker compose -f /opt/snmp-simulator/docker-compose.yml down
+ExecReload=/usr/bin/docker compose -f /opt/snmp-simulator/docker-compose.yml up -d --build --remove-orphans
+
+[Install]
+WantedBy=multi-user.target

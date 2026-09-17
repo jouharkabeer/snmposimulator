@@ -1,0 +1,5 @@
+Django==5.2.6
+snmpsim==1.2.2
+pysnmp>=7.1.26,<8.0.0
+pysmi>=2.0.0
+PyYAML==6.0.2

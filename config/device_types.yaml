@@ -1,0 +1,74 @@
+# Device type registry. Add a new block here to introduce another vendor/model.
+# The snmprec generator reads these fields; extra_mibs selects optional OID packs.
+
+router:
+  category: router
+  vendor: Cisco
+  model: ISR 4321
+  sys_object_id: "1.3.6.1.4.1.9.1.2093"
+  sys_descr: >-
+    Cisco IOS Software [Fuji], ISR Software (X86_64_LINUX_IOSD-UNIVERSALK9-M),
+    Version 16.9.4, RELEASE SOFTWARE (fc2)
+  metadata_type: router
+  interface_count: [4, 8]
+  interface_style: cisco_router
+  extra_mibs: [cisco_cpu, cisco_memory, cisco_chassis]
+  name_patterns:
+    - core-rtr-{nn}
+    - edge-rtr-{nn}
+    - wan-rtr-{nn}
+    - dist-rtr-{nn}
+
+switch:
+  category: switch
+  vendor: Cisco
+  model: Catalyst 3850-24T
+  sys_object_id: "1.3.6.1.4.1.9.1.1745"
+  sys_descr: >-
+    Cisco IOS Software, IOS-XE Software, Catalyst L3 Switch Software
+    (CAT3K_CAA-UNIVERSALK9-M), Version 03.06.06E RELEASE SOFTWARE (fc1)
+  metadata_type: switch
+  interface_count: [8, 16]
+  interface_style: cisco_switch
+  extra_mibs: [cisco_cpu, cisco_memory, cisco_chassis]
+  name_patterns:
+    - access-sw-{nn}
+    - dist-sw-{nn}
+    - core-sw-{nn}
+    - floor-sw-{nn}
+
+firewall:
+  category: firewall
+  vendor: Cisco
+  model: ASA 5505
+  sys_object_id: "1.3.6.1.4.1.9.1.745"
+  sys_descr: >-
+    Cisco Adaptive Security Appliance Software Version 9.8(4)
+    Device: ASA5505, 512 MB RAM, CPU Geode 500 MHz
+  metadata_type: firewall
+  interface_count: [4, 6]
+  interface_style: cisco_firewall
+  extra_mibs: [cisco_cpu, cisco_memory, cisco_chassis]
+  name_patterns:
+    - fw-edge-{nn}
+    - fw-core-{nn}
+    - asa-fw-{nn}
+    - perimeter-fw-{nn}
+
+generic:
+  category: generic
+  vendor: Net-SNMP
+  model: Linux net-snmp
+  sys_object_id: "1.3.6.1.4.1.8072.3.2.10"
+  sys_descr: >-
+    Linux netdev 5.15.0-91-generic #101-Ubuntu SMP x86_64
+    net-snmp 5.9.3
+  metadata_type: other
+  interface_count: [3, 6]
+  interface_style: linux
+  extra_mibs: [host_resources, ucd_snmp]
+  name_patterns:
+    - net-dev-{nn}
+    - linux-gw-{nn}
+    - snmp-host-{nn}
+    - lab-box-{nn}
