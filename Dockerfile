@@ -21,10 +21,14 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
-RUN mkdir -p /data/db /data/snmp /data/run /data/logs /data/datadog \
+
+RUN groupadd --gid 1001 snmp \
+    && useradd --uid 1001 --gid 1001 --create-home --shell /bin/sh snmp \
+    && mkdir -p /data/db /data/snmp /data/run /data/logs /data/datadog \
     && sed -i 's/\r$//' /app/scripts/*.py \
     && cp /app/scripts/sim.py /usr/local/bin/sim \
     && chmod +x /usr/local/bin/sim /app/scripts/entrypoint.py /app/manage.py
+
 
 EXPOSE 161/udp 1161/udp
 

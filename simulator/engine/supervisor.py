@@ -201,6 +201,10 @@ def build_snmpsim_args() -> list[str]:
     args: list[str] = [
         "--logging-method",
         "stdout",
+        "--process-user",
+        "snmp",
+        "--process-group",
+        "snmp",
         "--log-level",
         os.environ.get("SNMPSIM_LOG_LEVEL", "info"),
         "--cache-dir",
