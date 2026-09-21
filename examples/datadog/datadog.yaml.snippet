@@ -19,3 +19,8 @@ network_devices:
         tags:
           - 'env:snmp-lab'
           - 'source:snmp-simulator'
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port: 2055

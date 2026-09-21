@@ -365,6 +365,14 @@ def engine_status() -> dict:
         "host_port": load_simulator_config()["snmp"]["host_port"],
         "community": load_simulator_config()["snmp"]["community"],
         "device_cidr": load_simulator_config()["network"]["device_cidr"],
+        "netflow_enabled": state.netflow_enabled,
+        "netflow_version": state.netflow_version,
+        "netflow_collector": f"{state.netflow_collector_host}:{state.netflow_collector_port}",
+        "netflow_packets_sent": state.netflow_packets_sent,
+        "netflow_last_error": state.netflow_last_error,
+        "netflow_exporters": Device.objects.filter(
+            reachability=Reachability.UP, netflow_enabled=True
+        ).count(),
     }
 
 
@@ -406,6 +414,7 @@ def daemon_loop() -> None:
 
     print("SNMP simulator supervisor is running. Use `python manage.py simulator`.", flush=True)
 
+    last_netflow = 0.0
     while not stopping["flag"]:
         time.sleep(1)
         state = SimulationState.get()
@@ -421,6 +430,18 @@ def daemon_loop() -> None:
                     state.last_error = str(exc)
                     state.save(update_fields=["last_error"])
                     print(f"SNMPSim restart failed: {exc}", file=sys.stderr)
+            now = time.time()
+            try:
+                from simulator.engine.netflow import export_netflow_tick, netflow_config
+
+                interval = netflow_config()["interval"]
+                if state.netflow_enabled and now - last_netflow >= interval:
+                    stats = export_netflow_tick()
+                    last_netflow = now
+                    if stats.get("error"):
+                        print(f"NetFlow export error: {stats['error']}", file=sys.stderr)
+            except Exception as exc:  # noqa: BLE001
+                print(f"NetFlow export failed: {exc}", file=sys.stderr)
         else:
             if alive:
                 stop_snmpsim()

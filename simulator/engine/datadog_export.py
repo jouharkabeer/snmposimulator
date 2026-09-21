@@ -61,9 +61,17 @@ def render_autodiscovery_snippet() -> str:
     cidr = cfg["network"]["device_cidr"]
     community = cfg["snmp"]["community"]
     port = cfg["snmp"]["port"]
+    from simulator.models import SimulationState
+
+    state = SimulationState.get()
+    nf_port = state.netflow_collector_port
+    nf_ver = "netflow9" if int(state.netflow_version) == 9 else "netflow5"
     return f"""# Add this block to /etc/datadog-agent/datadog.yaml
 # Autodiscovery scans the simulator subnet. Unreachable devices will fail
 # SNMP checks and appear down in Network Device Monitoring.
+#
+# NetFlow: simulated devices export {nf_ver} to the Agent. Open UDP {nf_port}
+# on the host (ufw/iptables) and keep network_devices.netflow enabled.
 
 network_devices:
   autodiscovery:
@@ -80,6 +88,11 @@ network_devices:
         tags:
           - 'env:snmp-lab'
           - 'source:snmp-simulator'
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: {nf_ver}
+        port: {nf_port}
 """
 
 

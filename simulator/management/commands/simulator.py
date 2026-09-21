@@ -31,6 +31,9 @@ SNMP Network Device Simulator
   python manage.py simulator remove device-001
   python manage.py simulator set-traffic device-001 high
   python manage.py simulator set-reachability device-005 down
+  python manage.py simulator netflow status
+  python manage.py simulator netflow collector host.docker.internal 2055
+  python manage.py simulator set-netflow device-001 on
   python manage.py simulator stop
   python manage.py simulator reset --force
 """
@@ -111,6 +114,21 @@ class Command(BaseCommand):
         reach.add_argument("device_id")
         reach.add_argument("state", choices=["up", "down", "reachable", "unreachable"])
 
+        netflow = sub.add_parser("netflow", help="NetFlow exporter controls.")
+        nf_sub = netflow.add_subparsers(dest="netflow_cmd", metavar="action")
+        nf_sub.add_parser("status", help="Show NetFlow exporter status.")
+        nf_sub.add_parser("enable", help="Enable NetFlow export.")
+        nf_sub.add_parser("disable", help="Disable NetFlow export.")
+        nf_col = nf_sub.add_parser("collector", help="Set collector host and UDP port.")
+        nf_col.add_argument("host")
+        nf_col.add_argument("port", type=int)
+        nf_ver = nf_sub.add_parser("version", help="Set NetFlow version 5 or 9.")
+        nf_ver.add_argument("version", type=int, choices=[5, 9])
+
+        set_nf = sub.add_parser("set-netflow", help="Enable or disable NetFlow on one device.")
+        set_nf.add_argument("device_id")
+        set_nf.add_argument("state", choices=["on", "off"])
+
         reset = sub.add_parser("reset", help="Delete all devices and stop the engine.")
         reset.add_argument("--force", action="store_true")
 
@@ -151,6 +169,8 @@ class Command(BaseCommand):
             "update": self._update,
             "set-traffic": self._set_traffic,
             "set-reachability": self._set_reachability,
+            "netflow": self._netflow,
+            "set-netflow": self._set_netflow,
             "reset": self._reset,
             "export-datadog": self._export_datadog,
             "types": self._types,
@@ -235,11 +255,19 @@ class Command(BaseCommand):
         self.stdout.write(f"Device subnet:      {status['device_cidr']}")
         self.stdout.write(f"SNMP community:     {status['community']}")
         self.stdout.write(f"Host UDP port:      {status['host_port']}")
+        self.stdout.write(
+            f"NetFlow:            {'on' if status.get('netflow_enabled') else 'off'}  "
+            f"v{status.get('netflow_version')} -> {status.get('netflow_collector')}  "
+            f"exporters={status.get('netflow_exporters')}  "
+            f"packets={status.get('netflow_packets_sent')}"
+        )
         self.stdout.write(f"Config generation:  {status['generation']}")
         if status["last_started_at"]:
             self.stdout.write(f"Last started:       {status['last_started_at']}")
         if status["last_error"]:
             self.stdout.write(self.style.WARNING(f"Warnings:\n{status['last_error']}"))
+        if status.get("netflow_last_error"):
+            self.stdout.write(self.style.WARNING(f"NetFlow error: {status['netflow_last_error']}"))
 
     def _reload(self, _options):
         services.reload_engine()
@@ -274,6 +302,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Contact:        {device.contact}")
         self.stdout.write(f"Traffic:        {device.traffic_profile.upper()}")
         self.stdout.write(f"Status:         {device.status_label}")
+        self.stdout.write(f"NetFlow:        {'on' if device.netflow_enabled and device.is_reachable else 'off'}")
         self.stdout.write(f"Interfaces:     {device.interface_count}")
         self.stdout.write("")
         self.stdout.write(f"{'IDX':<5}{'NAME':<24}{'STATUS':<10}{'SPEED':<12}{'ALIAS'}")
@@ -348,6 +377,52 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"{device.device_id} is now {device.status_label}.")
         )
 
+    def _netflow(self, options):
+        action = options.get("netflow_cmd")
+        if not action:
+            raise CommandError("Usage: simulator netflow status|enable|disable|collector|version")
+        if action == "status":
+            status = engine_status()
+            self.stdout.write(f"Enabled:     {'yes' if status['netflow_enabled'] else 'no'}")
+            self.stdout.write(f"Version:     NetFlow v{status['netflow_version']}")
+            self.stdout.write(f"Collector:   {status['netflow_collector']}")
+            self.stdout.write(f"Exporters:   {status['netflow_exporters']} reachable devices")
+            self.stdout.write(f"Packets sent:{status['netflow_packets_sent']}")
+            if status.get("netflow_last_error"):
+                self.stdout.write(self.style.WARNING(f"Last error:  {status['netflow_last_error']}"))
+            return
+        if action == "enable":
+            services.configure_netflow(enabled=True)
+            self.stdout.write(self.style.SUCCESS("NetFlow export enabled."))
+            return
+        if action == "disable":
+            services.configure_netflow(enabled=False)
+            self.stdout.write(self.style.WARNING("NetFlow export disabled."))
+            return
+        if action == "collector":
+            state = services.configure_netflow(
+                collector_host=options["host"],
+                collector_port=options["port"],
+            )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"NetFlow collector set to {state.netflow_collector_host}:{state.netflow_collector_port}."
+                )
+            )
+            return
+        if action == "version":
+            state = services.configure_netflow(version=options["version"])
+            self.stdout.write(self.style.SUCCESS(f"NetFlow version set to v{state.netflow_version}."))
+            return
+        raise CommandError(f"Unknown netflow action '{action}'.")
+
+    def _set_netflow(self, options):
+        device = self._get_device(options["device_id"])
+        enabled = options["state"] == "on"
+        device = services.set_device_netflow(device, enabled)
+        label = "on" if device.netflow_enabled else "off"
+        self.stdout.write(self.style.SUCCESS(f"{device.device_id} NetFlow export is {label}."))
+
     def _reset(self, options):
         if not options.get("force"):
             confirm = input("Delete ALL simulated devices? Type 'yes' to continue: ").strip()
@@ -389,6 +464,7 @@ class Command(BaseCommand):
             "sys_object_id": device.sys_object_id,
             "traffic_profile": device.traffic_profile,
             "reachability": device.reachability,
+            "netflow_enabled": device.netflow_enabled,
             "interface_count": device.interface_count,
         }
         if detail:
@@ -400,12 +476,13 @@ class Command(BaseCommand):
         return data
 
     def _print_table(self, devices: list[Device]) -> None:
-        header = f"{'ID':<14}{'NAME':<20}{'IP':<16}{'TYPE':<10}{'TRAFFIC':<8}{'STATUS'}"
+        header = f"{'ID':<14}{'NAME':<20}{'IP':<16}{'TYPE':<10}{'TRAFFIC':<8}{'STATUS':<6}{'NETFLOW'}"
         self.stdout.write(header)
         self.stdout.write("-" * len(header))
         for device in devices:
             status = "UP" if device.is_reachable else "DOWN"
+            netflow = "on" if device.netflow_enabled and device.is_reachable else "off"
             self.stdout.write(
                 f"{device.device_id:<14}{device.name:<20}{device.ip_address:<16}"
-                f"{device.device_type:<10}{device.traffic_profile.upper():<8}{status}"
+                f"{device.device_type:<10}{device.traffic_profile.upper():<8}{status:<6}{netflow}"
             )

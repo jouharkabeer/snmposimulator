@@ -177,3 +177,36 @@ def reload_engine() -> dict:
 
 def counts_from_values(total, high, medium, low, unreachable) -> CategoryCounts:
     return validate_counts(total, high, medium, low, unreachable)
+
+
+def configure_netflow(
+    *,
+    enabled: bool | None = None,
+    collector_host: str | None = None,
+    collector_port: int | None = None,
+    version: int | None = None,
+) -> SimulationState:
+    state = SimulationState.get()
+    if enabled is not None:
+        state.netflow_enabled = enabled
+    if collector_host:
+        state.netflow_collector_host = collector_host.strip()
+    if collector_port is not None:
+        port = int(collector_port)
+        if port < 1 or port > 65535:
+            raise ValueError("Collector port must be between 1 and 65535.")
+        state.netflow_collector_port = port
+    if version is not None:
+        if int(version) not in (5, 9):
+            raise ValueError("NetFlow version must be 5 or 9.")
+        state.netflow_version = int(version)
+    state.save()
+    write_datadog_exports()
+    return state
+
+
+def set_device_netflow(device: Device, enabled: bool) -> Device:
+    device.netflow_enabled = enabled
+    device.save(update_fields=["netflow_enabled", "updated_at"])
+    write_datadog_exports()
+    return device

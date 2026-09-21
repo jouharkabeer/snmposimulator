@@ -21,6 +21,8 @@ services:
       - "1161:1161/udp"
     volumes:
       - simulator-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       SIMULATOR_DATA_DIR: /data
       DJANGO_SETTINGS_MODULE: snmp_lab.settings
@@ -31,6 +33,10 @@ services:
       SIMULATOR_MEDIUM: "${SIMULATOR_MEDIUM:-}"
       SIMULATOR_LOW: "${SIMULATOR_LOW:-}"
       SIMULATOR_UNREACHABLE: "${SIMULATOR_UNREACHABLE:-}"
+      NETFLOW_COLLECTOR_HOST: "${NETFLOW_COLLECTOR_HOST:-host.docker.internal}"
+      NETFLOW_COLLECTOR_PORT: "${NETFLOW_COLLECTOR_PORT:-2055}"
+      NETFLOW_VERSION: "${NETFLOW_VERSION:-9}"
+      NETFLOW_EXPORT_INTERVAL: "${NETFLOW_EXPORT_INTERVAL:-5}"
     networks:
       snmp-lab:
         ipv4_address: 10.200.0.10

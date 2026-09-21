@@ -30,6 +30,12 @@ class SimulationState(models.Model):
     last_error = models.TextField(blank=True, default="")
     generation = models.PositiveIntegerField(default=0)
     notes = models.CharField(max_length=255, blank=True, default="")
+    netflow_enabled = models.BooleanField(default=True)
+    netflow_version = models.PositiveSmallIntegerField(default=9)
+    netflow_collector_host = models.CharField(max_length=255, default="host.docker.internal")
+    netflow_collector_port = models.PositiveIntegerField(default=2055)
+    netflow_packets_sent = models.PositiveIntegerField(default=0)
+    netflow_last_error = models.TextField(blank=True, default="")
 
     class Meta:
         verbose_name = "simulation state"
@@ -39,7 +45,20 @@ class SimulationState(models.Model):
 
     @classmethod
     def get(cls) -> "SimulationState":
-        obj, _created = cls.objects.get_or_create(pk=1)
+        obj, created = cls.objects.get_or_create(pk=1)
+        if created:
+            import os
+
+            host = os.environ.get("NETFLOW_COLLECTOR_HOST")
+            port = os.environ.get("NETFLOW_COLLECTOR_PORT")
+            version = os.environ.get("NETFLOW_VERSION")
+            if host:
+                obj.netflow_collector_host = host
+            if port:
+                obj.netflow_collector_port = int(port)
+            if version:
+                obj.netflow_version = int(version)
+            obj.save()
         return obj
 
 
@@ -72,6 +91,7 @@ class Device(models.Model):
     interface_count = models.PositiveIntegerField(default=4)
     interfaces = models.JSONField(default=list, blank=True)
     extra = models.JSONField(default=dict, blank=True)
+    netflow_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

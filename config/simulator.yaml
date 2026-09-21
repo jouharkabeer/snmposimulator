@@ -29,6 +29,15 @@ datadog:
   poll_interval_seconds: 15
   namespace: "snmp-lab"
 
+netflow:
+  # Datadog Agent NetFlow listener (network_devices.netflow).
+  # Default collector is the Ubuntu host via Docker host-gateway.
+  enabled: true
+  version: 9          # 5 or 9 (Datadog default listener is netflow9 / UDP 2055)
+  collector_host: "host.docker.internal"
+  collector_port: 2055
+  export_interval_seconds: 5
+
 engine:
   reload_flag: "reload"
   pid_file: "snmpsim.pid"

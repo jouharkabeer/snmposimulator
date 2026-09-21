@@ -90,3 +90,83 @@ class FactoryTests(TestCase):
         self.assertEqual(Device.objects.filter(device_id="device-001").count(), 1)
         types = set(Device.objects.values_list("device_type", flat=True))
         self.assertTrue({"router", "switch", "firewall", "generic"} <= types)
+
+
+class NetflowTests(TestCase):
+    def _device(self, traffic=TrafficProfile.HIGH, reachability=Reachability.UP) -> Device:
+        payload = build_device_payload(
+            device_id="device-001",
+            ip_address="10.200.1.1",
+            device_type="router",
+            traffic_profile=traffic,
+            reachability=reachability,
+            sequence=1,
+        )
+        return Device(**payload)
+
+    def test_v5_packet_structure(self):
+        from simulator.engine.netflow import Flow, encode_netflow_v5
+
+        flow = Flow(
+            src="10.200.1.1",
+            dst="8.8.8.8",
+            nexthop="10.200.0.1",
+            input_if=1,
+            output_if=2,
+            packets=10,
+            octets=1500,
+            first_ms=100,
+            last_ms=200,
+            src_port=45000,
+            dst_port=443,
+            protocol=6,
+            tos=0,
+            tcp_flags=0x18,
+            direction=1,
+        )
+        packet = encode_netflow_v5([flow], uptime_ms=1000, unix_secs=1700000000, sequence=1, engine_id=1)
+        self.assertEqual(packet[:2], b"\x00\x05")
+        self.assertEqual(int.from_bytes(packet[2:4], "big"), 1)
+        self.assertEqual(len(packet), 24 + 48)
+
+    def test_v9_packet_contains_template_and_data(self):
+        from simulator.engine.netflow import Flow, encode_netflow_v9
+
+        flow = Flow(
+            src="10.200.1.1",
+            dst="1.1.1.1",
+            nexthop="10.200.0.1",
+            input_if=1,
+            output_if=2,
+            packets=4,
+            octets=640,
+            first_ms=10,
+            last_ms=50,
+            src_port=53,
+            dst_port=53,
+            protocol=17,
+            tos=0,
+            tcp_flags=0,
+            direction=0,
+        )
+        packet = encode_netflow_v9(
+            [flow],
+            uptime_ms=1000,
+            unix_secs=1700000000,
+            sequence=3,
+            source_id=1,
+            include_template=True,
+        )
+        self.assertEqual(packet[:2], b"\x00\x09")
+        self.assertGreater(len(packet), 20)
+        self.assertIn(b"\x01\x00", packet)  # template id 256
+
+    def test_flow_count_follows_profile(self):
+        from simulator.engine.netflow import generate_flows
+
+        high = generate_flows(self._device(TrafficProfile.HIGH), interval=5)
+        low = generate_flows(self._device(TrafficProfile.LOW), interval=5)
+        self.assertEqual(len(high), 24)
+        self.assertEqual(len(low), 4)
+        self.assertTrue(all(flow.octets >= 64 for flow in high))
+
